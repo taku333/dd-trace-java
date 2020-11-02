@@ -1,20 +1,16 @@
 package datadog.trace.instrumentation.opentelemetry;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import io.opentelemetry.common.AttributeValue;
-import io.opentelemetry.context.Scope;
-import io.opentelemetry.trace.Link;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.SpanContext;
-import io.opentelemetry.trace.Tracer;
-import java.util.Map;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import java.util.concurrent.TimeUnit;
 
-public class OtelTracer implements Tracer {
+public final class OtelTracer implements Tracer {
   private final String tracerName;
   private final AgentTracer.TracerAPI tracer;
   private final TypeConverter converter;
@@ -24,18 +20,6 @@ public class OtelTracer implements Tracer {
     this.tracerName = tracerName;
     this.tracer = tracer;
     this.converter = converter;
-  }
-
-  @Override
-  public Span getCurrentSpan() {
-    return converter.toSpan(tracer.activeSpan());
-  }
-
-  @Override
-  public Scope withSpan(final Span span) {
-    final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = tracer.activateSpan(agentSpan, ScopeSource.MANUAL);
-    return converter.toScope(agentScope);
   }
 
   @Override
@@ -52,16 +36,9 @@ public class OtelTracer implements Tracer {
     }
 
     @Override
-    public Span.Builder setParent(final Span parent) {
+    public Span.Builder setParent(Context context) {
       parentSet = true;
-      delegate.asChildOf(converter.toAgentSpan(parent).context());
-      return this;
-    }
-
-    @Override
-    public Span.Builder setParent(final SpanContext remoteParent) {
-      parentSet = true;
-      delegate.asChildOf(converter.toContext(remoteParent));
+      delegate.asChildOf(converter.toAgentSpanContext(Span.fromContext(context).getSpanContext()));
       return this;
     }
 
@@ -76,24 +53,15 @@ public class OtelTracer implements Tracer {
     @Override
     public Span.Builder addLink(final SpanContext spanContext) {
       if (!parentSet) {
-        delegate.asChildOf(converter.toContext(spanContext));
+        delegate.asChildOf(converter.toAgentSpanContext(spanContext));
       }
       return this;
     }
 
     @Override
-    public Span.Builder addLink(
-        final SpanContext spanContext, final Map<String, AttributeValue> attributes) {
+    public Span.Builder addLink(SpanContext spanContext, Attributes attributes) {
       if (!parentSet) {
-        delegate.asChildOf(converter.toContext(spanContext));
-      }
-      return this;
-    }
-
-    @Override
-    public Span.Builder addLink(final Link link) {
-      if (!parentSet) {
-        delegate.asChildOf(converter.toContext(link.getContext()));
+        delegate.asChildOf(converter.toAgentSpanContext(spanContext));
       }
       return this;
     }
@@ -123,23 +91,8 @@ public class OtelTracer implements Tracer {
     }
 
     @Override
-    public Span.Builder setAttribute(final String key, final AttributeValue value) {
-      switch (value.getType()) {
-        case LONG:
-          delegate.withTag(key, value.getLongValue());
-          break;
-        case DOUBLE:
-          delegate.withTag(key, value.getDoubleValue());
-          break;
-        case STRING:
-          delegate.withTag(key, value.getStringValue());
-          break;
-        case BOOLEAN:
-          delegate.withTag(key, value.getBooleanValue());
-          break;
-        default:
-          // Unsupported.... Ignoring.
-      }
+    public <T> Span.Builder setAttribute(AttributeKey<T> key, T t) {
+      delegate.withTag(key.getKey(), t);
       return this;
     }
 

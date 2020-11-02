@@ -166,6 +166,11 @@ public class DDSpanContext implements AgentSpan.Context {
     return spanId;
   }
 
+  @Override
+  public boolean isRemote() {
+    return false;
+  }
+
   public String getServiceName() {
     return serviceName;
   }

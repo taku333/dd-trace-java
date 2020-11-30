@@ -28,7 +28,8 @@ class HttpServletResponseTest extends AgentTestRunner {
     def servlet = new AbstractHttpServlet() {}
     // We need to call service so HttpServletAdvice can link the request to the response.
     servlet.service((ServletRequest) request, (ServletResponse) response)
-    assert response.__datadogContext$javax$servlet$http$HttpServletResponse != null
+    // check this has been cleared out
+    assert response.__datadogContext$javax$servlet$http$HttpServletResponse == null
     TEST_WRITER.waitForTraces(1)
     TEST_WRITER.clear()
   }
@@ -98,7 +99,7 @@ class HttpServletResponseTest extends AgentTestRunner {
     def servlet = new AbstractHttpServlet() {}
     // We need to call service so HttpServletAdvice can link the request to the response.
     servlet.service((ServletRequest) request, (ServletResponse) response)
-    assert response.__datadogContext$javax$servlet$http$HttpServletResponse != null
+    assert response.__datadogContext$javax$servlet$http$HttpServletResponse == null
     TEST_WRITER.waitForTraces(1)
     TEST_WRITER.clear()
 

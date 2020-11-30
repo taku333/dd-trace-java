@@ -5,11 +5,14 @@ jacoco {
 }
 
 jacocoTestReport {
-  dependsOn test
+  dependsOn test, forkedTest
   reports {
     xml.enabled true
     csv.enabled false
     html.destination file("${buildDir}/reports/jacoco/")
+  }
+  if (file("$buildDir/jacoco/forkedTest.exec").exists()) {
+    executionData(forkedTest)
   }
 }
 
@@ -37,6 +40,13 @@ afterEvaluate {
     }
   }
 
+  forkedTest {
+    jacoco {
+      // Make sure that excluded classes do not get jacoco instrumentation applied since it may confuse apm agent in some cases
+      excludes = project.excludedClassesCoverage
+    }
+  }
+
   jacocoTestCoverageVerification {
     violationRules {
       rule {
@@ -56,6 +66,10 @@ afterEvaluate {
           minimum = project.minimumInstructionCoverage
         }
       }
+    }
+
+    if (file("$buildDir/jacoco/forkedTest.exec").exists()) {
+      executionData(forkedTest)
     }
 
     // Disable verification if skipTests property was specified
